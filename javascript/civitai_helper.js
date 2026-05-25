@@ -365,6 +365,67 @@ function ch_dl_model_new_version(event, model_path, version_id, download_url){
     event.preventDefault();
 }
 
+function ch_apply_lora_with_strength(event, model_type, search_term){
+    let js_apply_lora_btn = gradioApp().getElementById("ch_js_apply_lora_btn");
+    if (!js_apply_lora_btn) { return; }
+
+    let strength = shared.gradio_config.components?.ch_lora_strength?.value || 1.0;
+    let strengthInput = gradioApp().querySelector("#ch_lora_strength input");
+    if (strengthInput) {
+        strength = parseFloat(strengthInput.value) || 1.0;
+    }
+
+    let msg = {
+        "action": "apply_lora_with_strength",
+        "model_type": model_type,
+        "search_term": search_term,
+        "strength": strength,
+        "prompt": "",
+        "neg_prompt": "",
+    }
+    let act_prompt = getActivePrompt();
+    msg["prompt"] = act_prompt ? act_prompt.value : "";
+    send_ch_py_msg(msg);
+    js_apply_lora_btn.click();
+    event.stopPropagation();
+    event.preventDefault();
+}
+
+function ch_batch_dl_new_versions(){
+    let btn = gradioApp().getElementById("ch_js_batch_dl_new_versions_btn");
+    if (!btn) { return; }
+
+    let items = gradioApp().querySelectorAll(".ch-new-ver-dl-btn");
+    if (!items || items.length == 0) {
+        alert("No new versions to download");
+        return;
+    }
+
+    if (!confirm(`\nConfirm to batch download ${items.length} new version(s)?\n\nCheck console log for detail.`)) { return; }
+
+    btn.click();
+}
+
+function ch_save_model_note(event, model_type, search_term){
+    let js_save_note_btn = gradioApp().getElementById("ch_js_save_note_btn");
+    if (!js_save_note_btn) { return; }
+
+    let card = event.target.closest(".card");
+    let noteInput = card ? card.querySelector(".ch-note-input") : null;
+    let note = noteInput ? noteInput.value : "";
+
+    let msg = {
+        "action": "save_note",
+        "model_type": model_type,
+        "search_term": search_term,
+        "note": note,
+    }
+    send_ch_py_msg(msg);
+    js_save_note_btn.click();
+    event.stopPropagation();
+    event.preventDefault();
+}
+
 function compareVersions(version1, version2) {
     const v1Parts = version1.split('.').map(Number);
     const v2Parts = version2.split('.').map(Number);
@@ -377,11 +438,203 @@ function compareVersions(version1, version2) {
     return 0;
 }
 
+function ch_format_file_size(bytes) {
+    if (!bytes || bytes <= 0) return "";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+}
+
 
 onUiLoaded(() => {
     let tab_prefix_list = ["txt2img", "img2img"];
     let model_type_list = ["textual_inversion", "hypernetworks", "checkpoints", "lora"];
     let cardid_suffix = "cards";
+
+    function create_card_buttons(model_type, search_term) {
+        let buttons = [];
+
+        let open_url_node = document.createElement("a");
+        open_url_node.href = "#";
+        open_url_node.innerHTML = "🌐";
+        open_url_node.className = "card-button";
+        open_url_node.title = "Open Civitai page";
+        open_url_node.setAttribute("onclick","open_model_url(event, '"+model_type+"', '"+search_term+"')");
+        buttons.push(open_url_node);
+
+        let add_trigger_words_node = document.createElement("a");
+        add_trigger_words_node.href = "#";
+        add_trigger_words_node.innerHTML = "💡";
+        add_trigger_words_node.className = "card-button";
+        add_trigger_words_node.title = "Add trigger words to prompt";
+        add_trigger_words_node.setAttribute("onclick","add_trigger_words(event, '"+model_type+"', '"+search_term+"')");
+        buttons.push(add_trigger_words_node);
+
+        let use_preview_prompt_node = document.createElement("a");
+        use_preview_prompt_node.href = "#";
+        use_preview_prompt_node.innerHTML = "🏷️";
+        use_preview_prompt_node.className = "card-button";
+        use_preview_prompt_node.title = "Use prompt from preview image";
+        use_preview_prompt_node.setAttribute("onclick","use_preview_prompt(event, '"+model_type+"', '"+search_term+"')");
+        buttons.push(use_preview_prompt_node);
+
+        if (model_type === "lora") {
+            let apply_lora_node = document.createElement("a");
+            apply_lora_node.href = "#";
+            apply_lora_node.innerHTML = "⚡";
+            apply_lora_node.className = "card-button";
+            apply_lora_node.title = "Apply LoRA with strength to prompt";
+            apply_lora_node.setAttribute("onclick","ch_apply_lora_with_strength(event, '"+model_type+"', '"+search_term+"')");
+            buttons.push(apply_lora_node);
+        }
+
+        let note_node = document.createElement("a");
+        note_node.href = "#";
+        note_node.innerHTML = "📝";
+        note_node.className = "card-button";
+        note_node.title = "Edit note for this model";
+        note_node.setAttribute("onclick","ch_toggle_model_note(event, '"+model_type+"', '"+search_term+"')");
+        buttons.push(note_node);
+
+        let remove_card_node = document.createElement("a");
+        remove_card_node.href = "#";
+        remove_card_node.innerHTML = "❌";
+        remove_card_node.className = "card-button";
+        remove_card_node.title = "Remove this model";
+        remove_card_node.setAttribute("onclick","remove_card(event, '"+model_type+"', '"+search_term+"')");
+        buttons.push(remove_card_node);
+
+        return buttons;
+    }
+
+    function ch_toggle_model_note(event, model_type, search_term) {
+        let card = event.target.closest(".card");
+        if (!card) return;
+        event.stopPropagation();
+        event.preventDefault();
+
+        let existing = card.querySelector(".ch-note-panel");
+        if (existing) {
+            existing.remove();
+            return;
+        }
+
+        let panel = document.createElement("div");
+        panel.className = "ch-note-panel";
+
+        let textarea = document.createElement("textarea");
+        textarea.className = "ch-note-input";
+        textarea.placeholder = "Write your note here...";
+        textarea.rows = 2;
+        textarea.setAttribute("data-model-type", model_type);
+        textarea.setAttribute("data-search-term", search_term);
+
+        let savedNote = card.querySelector(".actions .additional .ch_note");
+        if (savedNote) {
+            textarea.value = savedNote.innerHTML.trim();
+        }
+
+        let save_btn = document.createElement("button");
+        save_btn.innerHTML = "Save";
+        save_btn.className = "ch-note-save-btn";
+        save_btn.onclick = function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            ch_save_model_note(e, model_type, search_term);
+            panel.remove();
+        };
+
+        textarea.addEventListener("click", function(e) { e.stopPropagation(); });
+        textarea.addEventListener("input", function(e) { e.stopPropagation(); });
+
+        panel.appendChild(textarea);
+        panel.appendChild(save_btn);
+        card.appendChild(panel);
+    }
+
+    function add_trigger_words_tooltip(card, model_type, search_term) {
+        if (card.querySelector(".ch-trigger-tooltip")) return;
+
+        let tooltip = document.createElement("div");
+        tooltip.className = "ch-trigger-tooltip";
+        tooltip.innerHTML = "Loading trigger words...";
+
+        let msg = {
+            "action": "get_trigger_words",
+            "model_type": model_type,
+            "search_term": search_term,
+        };
+
+        let js_get_trigger_words_btn = gradioApp().getElementById("ch_js_get_trigger_words_btn");
+        if (js_get_trigger_words_btn) {
+            let old_handler = js_get_trigger_words_btn.onclick;
+            send_ch_py_msg(msg);
+            js_get_trigger_words_btn.click();
+
+            get_new_ch_py_msg(3).then(response => {
+                if (response) {
+                    try {
+                        let py_msg_json = JSON.parse(response);
+                        if (py_msg_json && py_msg_json.content && py_msg_json.content.trigger_words) {
+                            let words = py_msg_json.content.trigger_words;
+                            if (words.length > 0) {
+                                tooltip.innerHTML = "🔑 " + words.join(", ");
+                            } else {
+                                tooltip.innerHTML = "No trigger words found";
+                            }
+                        } else {
+                            tooltip.innerHTML = "No trigger words found";
+                        }
+                    } catch(e) {
+                        tooltip.innerHTML = "No trigger words found";
+                    }
+                } else {
+                    tooltip.innerHTML = "No trigger words found";
+                }
+            }).catch(() => {
+                tooltip.innerHTML = "No trigger words found";
+            });
+        }
+
+        card.appendChild(tooltip);
+    }
+
+    function add_file_size_badge(card, model_type, search_term) {
+        if (card.querySelector(".ch-file-size")) return;
+
+        let msg = {
+            "action": "get_model_file_size",
+            "model_type": model_type,
+            "search_term": search_term,
+        };
+
+        let js_get_file_size_btn = gradioApp().getElementById("ch_js_get_file_size_btn");
+        if (js_get_file_size_btn) {
+            send_ch_py_msg(msg);
+            js_get_file_size_btn.click();
+
+            get_new_ch_py_msg(3).then(response => {
+                if (response) {
+                    try {
+                        let py_msg_json = JSON.parse(response);
+                        if (py_msg_json && py_msg_json.content && py_msg_json.content.file_size) {
+                            let sizeStr = ch_format_file_size(py_msg_json.content.file_size);
+                            if (sizeStr) {
+                                let badge = document.createElement("span");
+                                badge.className = "ch-file-size";
+                                badge.innerHTML = sizeStr;
+                                let name_row = card.querySelector(".name");
+                                if (name_row) {
+                                    name_row.appendChild(badge);
+                                }
+                            }
+                        }
+                    } catch(e) {}
+                }
+            }).catch(() => {});
+        }
+    }
 
     function update_card_for_civitai(){
         let extra_network_id = "";
@@ -391,7 +644,6 @@ onUiLoaded(() => {
         let search_term = "";
         let model_type = "";
         let cards = null;
-        let need_to_add_buttons = false;
 
         let active_tab_type = getActiveTabType();
         if (!active_tab_type){active_tab_type = "txt2img";}
@@ -444,38 +696,13 @@ onUiLoaded(() => {
                     search_term = search_term_node.innerHTML.trim();
                     if (!search_term) { continue; }
 
-                    let open_url_node = document.createElement("a");
-                    open_url_node.href = "#";
-                    open_url_node.innerHTML = "🌐";
-                    open_url_node.className = "card-button";
-                    open_url_node.title = "Open this model's civitai url";
-                    open_url_node.setAttribute("onclick","open_model_url(event, '"+model_type+"', '"+search_term+"')");
+                    let buttons = create_card_buttons(model_type, search_term);
+                    for (let btn of buttons) {
+                        button_row.appendChild(btn);
+                    }
 
-                    let add_trigger_words_node = document.createElement("a");
-                    add_trigger_words_node.href = "#";
-                    add_trigger_words_node.innerHTML = "💡";
-                    add_trigger_words_node.className = "card-button";
-                    add_trigger_words_node.title = "Add trigger words to prompt";
-                    add_trigger_words_node.setAttribute("onclick","add_trigger_words(event, '"+model_type+"', '"+search_term+"')");
-
-                    let use_preview_prompt_node = document.createElement("a");
-                    use_preview_prompt_node.href = "#";
-                    use_preview_prompt_node.innerHTML = "🏷️";
-                    use_preview_prompt_node.className = "card-button";
-                    use_preview_prompt_node.title = "Use prompt from preview image";
-                    use_preview_prompt_node.setAttribute("onclick","use_preview_prompt(event, '"+model_type+"', '"+search_term+"')");
-
-                    let remove_card_node = document.createElement("a");
-                    remove_card_node.href = "#";
-                    remove_card_node.innerHTML = "❌";
-                    remove_card_node.className = "card-button";
-                    remove_card_node.title = "Remove this model";
-                    remove_card_node.setAttribute("onclick","remove_card(event, '"+model_type+"', '"+search_term+"')");
-
-                    button_row.appendChild(open_url_node);
-                    button_row.appendChild(add_trigger_words_node);
-                    button_row.appendChild(use_preview_prompt_node);
-                    button_row.appendChild(remove_card_node);
+                    add_trigger_words_tooltip(card, model_type, search_term);
+                    add_file_size_badge(card, model_type, search_term);
                 }
             }
         }
@@ -490,7 +717,6 @@ onUiLoaded(() => {
         let search_term = "";
         let model_type = "";
         let cards = null;
-        let need_to_add_buttons = false;
         let active_model_type = "";
 
         let active_tab_type = getActiveTabType();
@@ -539,107 +765,16 @@ onUiLoaded(() => {
                 if (!search_term) { continue; }
                 search_term = search_term.replaceAll("\\", "\\\\");
 
-                let open_url_node = document.createElement("a");
-                open_url_node.href = "#";
-                open_url_node.innerHTML = "🌐";
-                open_url_node.className = "card-button";
-                open_url_node.title = "Open this model's civitai url";
-                open_url_node.setAttribute("onclick","open_model_url(event, '"+model_type+"', '"+search_term+"')");
-
-                let add_trigger_words_node = document.createElement("a");
-                add_trigger_words_node.href = "#";
-                add_trigger_words_node.innerHTML = "💡";
-                add_trigger_words_node.className = "card-button";
-                add_trigger_words_node.title = "Add trigger words to prompt";
-                add_trigger_words_node.setAttribute("onclick","add_trigger_words(event, '"+model_type+"', '"+search_term+"')");
-
-                let use_preview_prompt_node = document.createElement("a");
-                use_preview_prompt_node.href = "#";
-                use_preview_prompt_node.innerHTML = "🏷️";
-                use_preview_prompt_node.className = "card-button";
-                use_preview_prompt_node.title = "Use prompt from preview image";
-                use_preview_prompt_node.setAttribute("onclick","use_preview_prompt(event, '"+model_type+"', '"+search_term+"')");
-
-                let remove_card_node = document.createElement("a");
-                remove_card_node.href = "#";
-                remove_card_node.innerHTML = "❌";
-                remove_card_node.className = "card-button";
-                remove_card_node.title = "Remove this model";
-                remove_card_node.setAttribute("onclick","remove_card(event, '"+model_type+"', '"+search_term+"')");
-
-                button_row.appendChild(open_url_node);
-                button_row.appendChild(add_trigger_words_node);
-                button_row.appendChild(use_preview_prompt_node);
-                button_row.appendChild(remove_card_node);
-            }
-        }
-    }
-
-
-    function add_top_left_buttons(){
-        for (const tab_prefix of tab_prefix_list) {
-            for (const js_model_type of model_type_list) {
-                let model_type = convertModelTypeFromJsToPy(js_model_type);
-                if (!model_type) continue;
-
-                let extra_network_id = tab_prefix + "_" + js_model_type + "_" + cardid_suffix;
-                let extra_network_node = gradioApp().getElementById(extra_network_id);
-                if (!extra_network_node) continue;
-
-                let cards = extra_network_node.querySelectorAll(".card");
-                for (let card of cards) {
-                    if (card.querySelector(".ch-top-left-buttons")) continue;
-
-                    let search_term_node = card.querySelector(".actions .additional .search_terms") || 
-                                           card.querySelector(".actions .additional .search_term");
-                    if (!search_term_node) continue;
-
-                    let search_term = search_term_node.innerHTML.trim();
-                    if (!search_term) continue;
-                    search_term = search_term.replace(/\\/g, "\\\\");
-
-                    let container = document.createElement("div");
-                    container.className = "ch-top-left-buttons";
-
-                    let url_btn = document.createElement("button");
-                    url_btn.innerHTML = "🌐";
-                    url_btn.title = "Open Civitai page";
-                    url_btn.className = "ch-tl-btn ch-tl-url-btn";
-                    url_btn.setAttribute("data-model-type", model_type);
-                    url_btn.setAttribute("data-search-term", search_term);
-
-                    let del_btn = document.createElement("button");
-                    del_btn.innerHTML = "🗑️";
-                    del_btn.title = "Delete model";
-                    del_btn.className = "ch-tl-btn ch-tl-del-btn";
-                    del_btn.setAttribute("data-model-type", model_type);
-                    del_btn.setAttribute("data-search-term", search_term);
-
-                    container.appendChild(url_btn);
-                    container.appendChild(del_btn);
-
-                    card.style.position = "relative";
-                    card.insertBefore(container, card.firstChild);
+                let buttons = create_card_buttons(model_type, search_term);
+                for (let btn of buttons) {
+                    button_row.appendChild(btn);
                 }
+
+                add_trigger_words_tooltip(card, model_type, search_term);
+                add_file_size_badge(card, model_type, search_term);
             }
         }
     }
-
-    document.addEventListener("click", function(event){
-        let btn = event.target.closest(".ch-tl-btn");
-        if (!btn) return;
-        event.stopPropagation();
-        event.preventDefault();
-
-        let model_type = btn.getAttribute("data-model-type");
-        let search_term = btn.getAttribute("data-search-term");
-
-        if (btn.classList.contains("ch-tl-url-btn")) {
-            open_model_url(event, model_type, search_term);
-        } else if (btn.classList.contains("ch-tl-del-btn")) {
-            remove_card(event, model_type, search_term);
-        }
-    });
 
 
     let sd_version = ch_sd_version();
@@ -662,7 +797,6 @@ onUiLoaded(() => {
                 ch_refresh.style.fontSize = "150%";
                 ch_refresh.onclick = function(){
                     update_card_for_civitai_with_sd1_8();
-                    add_top_left_buttons();
                 };
 
                 extra_toolbar.style.gridTemplateColumns = "minmax(0, auto) repeat(5, min-content)";
@@ -671,7 +805,6 @@ onUiLoaded(() => {
         }
 
         update_card_for_civitai_with_sd1_8();
-        add_top_left_buttons();
 
     } else {
         for (let prefix of tab_prefix_list) {
@@ -685,14 +818,12 @@ onUiLoaded(() => {
             ch_refresh.style.fontSize = "200%";
             ch_refresh.onclick = function(){
                 update_card_for_civitai();
-                add_top_left_buttons();
             };
 
             extra_network_refresh_btn.parentNode.appendChild(ch_refresh);
         }
 
         update_card_for_civitai();
-        add_top_left_buttons();
     }
 
 
@@ -705,7 +836,6 @@ onUiLoaded(() => {
             } else {
                 update_card_for_civitai();
             }
-            add_top_left_buttons();
         }, 300);
     });
 

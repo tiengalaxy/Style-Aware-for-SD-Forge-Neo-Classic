@@ -1,23 +1,17 @@
 # -*- coding: UTF-8 -*-
-# handle msg between js and python side
 import json
 from . import util
 
-# action list
-js_actions = ("open_url", "add_trigger_words", "use_preview_prompt", "dl_model_new_version", "remove_card")
-py_actions = ("open_url", "remove_card")
+js_actions = ("open_url", "add_trigger_words", "use_preview_prompt", "dl_model_new_version", "remove_card", "apply_lora_with_strength", "save_note", "get_trigger_words", "get_model_file_size")
+py_actions = ("open_url", "remove_card", "get_trigger_words", "get_model_file_size")
 
 
-# handle request from javascript
-# parameter: msg - msg from js as string in a hidden textbox
-# return: dict for result
 def parse_js_msg(msg):
     util.printD("Start parse js msg")
     util.printD(f"Msg: {msg}")
 
     msg_dict = json.loads(msg)
 
-    # in case client side run JSON.stringify twice
     if (type(msg_dict) == str):
         msg_dict = json.loads(msg_dict)
 
@@ -39,9 +33,6 @@ def parse_js_msg(msg):
     return msg_dict
 
 
-# build python side msg for sending to js
-# parameter: content dict
-# return: msg as string, to fill into a hidden textbox
 def build_py_msg(action:str, content:dict):
     util.printD("Start build_msg")
     if not content:

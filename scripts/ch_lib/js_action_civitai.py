@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-# handle msg between js and python side
 import os
 import json
 import requests
@@ -12,9 +11,6 @@ from . import downloader
 
 
 
-# get civitai's model url and open it in browser
-# parameter: model_type, search_term
-# output: python msg - will be sent to hidden textbox then picked by js side
 def open_model_url(msg, open_url_with_js):
     util.printD("Start open_model_url")
 
@@ -55,14 +51,12 @@ def open_model_url(msg, open_url_with_js):
     url = civitai.get_url_dict()["modelPage"]+str(model_id)
 
 
-    # msg content for js
     content = {
         "url":""
     }
 
     if not open_url_with_js:
         util.printD("Open Url: " + url)
-        # open url
         webbrowser.open_new_tab(url)
     else:
         util.printD("Send Url to js")
@@ -74,9 +68,6 @@ def open_model_url(msg, open_url_with_js):
 
 
 
-# add trigger words to prompt
-# parameter: model_type, search_term, prompt
-# return: [new_prompt, new_prompt] - new prompt with trigger words, return twice for txt2img and img2img
 def add_trigger_words(msg):
     util.printD("Start add_trigger_words")
 
@@ -117,7 +108,6 @@ def add_trigger_words(msg):
         util.printD(f"trainedWords from info file for {model_type} {search_term} is empty")
         return [prompt, prompt]
     
-    # get ful trigger words
     trigger_words = ""
     for word in trainedWords:
         trigger_words = trigger_words + word + ", "
@@ -129,14 +119,10 @@ def add_trigger_words(msg):
 
     util.printD("End add_trigger_words")
 
-    # add to prompt
     return [new_prompt, new_prompt]
 
 
 
-# use preview image's prompt as prompt
-# parameter: model_type, model_name, prompt, neg_prompt
-# return: [new_prompt, new_neg_prompt, new_prompt, new_neg_prompt,] - return twice for txt2img and img2img
 def use_preview_image_prompt(msg):
     util.printD("Start use_preview_image_prompt")
 
@@ -178,7 +164,6 @@ def use_preview_image_prompt(msg):
         util.printD(f"images from info file for {model_type} {search_term} is empty")
         return [prompt, neg_prompt, prompt, neg_prompt]
     
-    # get prompt from preview images' meta data
     preview_prompt = ""
     preview_neg_prompt = ""
     for img in images:
@@ -192,7 +177,6 @@ def use_preview_image_prompt(msg):
                     if img["meta"]["negativePrompt"]:
                         preview_neg_prompt = img["meta"]["negativePrompt"]
 
-                # we only need 1 prompt
                 if preview_prompt:
                     break
             
@@ -205,8 +189,6 @@ def use_preview_image_prompt(msg):
     return [preview_prompt, preview_neg_prompt, preview_prompt, preview_neg_prompt]
 
 
-# download model's new verson by model path, version id and download url
-# output is a md log
 def dl_model_new_version(msg, max_size_preview, skip_nsfw_preview):
     util.printD("Start dl_model_new_version")
 
@@ -226,7 +208,6 @@ def dl_model_new_version(msg, max_size_preview, skip_nsfw_preview):
     util.printD("version_id: " + str(version_id))
     util.printD("download_url: " + download_url)
 
-    # check data
     if not model_path:
         output = "model_path is empty"
         util.printD(output)
@@ -247,37 +228,24 @@ def dl_model_new_version(msg, max_size_preview, skip_nsfw_preview):
         util.printD(output)
         return output
 
-    # get model folder from model path
     model_folder = os.path.dirname(model_path)
 
-    # no need to check when downloading new version, since checking new version is already checked
-    # check if this model is already existed
-    # r = civitai.search_local_model_info_by_version_id(model_folder, version_id, False)
-    # if r:
-    #     output = "This model version is already existed"
-    #     util.printD(output)
-    #     return output
-
-    # download file
     new_model_path = downloader.dl(download_url, model_folder, None, None)
     if not new_model_path:
         output = "Download failed, check console log for detail. Download url: " + download_url
         util.printD(output)
         return output
 
-    # get version info
     version_info = civitai.get_version_info_by_version_id(version_id)
     if not version_info:
         output = "Model downloaded, but failed to get version info, check console log for detail. Model saved to: " + new_model_path
         util.printD(output)
         return output
 
-    # now write version info to file
     base, ext = os.path.splitext(new_model_path)
     info_file = base + civitai.suffix + model.info_ext
     model.write_model_info(info_file, version_info)
 
-    # then, get preview image
     civitai.get_preview_image_by_model_path(new_model_path, max_size_preview, skip_nsfw_preview)
     
     output = "Done. Model downloaded to: " + new_model_path
@@ -286,7 +254,6 @@ def dl_model_new_version(msg, max_size_preview, skip_nsfw_preview):
 
 
 
-# remove a model and all related files
 def remove_model_by_path(msg):
     util.printD("Start remove_model_by_path")
 
@@ -318,17 +285,16 @@ def remove_model_by_path(msg):
         util.printD(output)
         return output
     
-    # all files need to be removed
     related_paths = []
     related_paths.append(model_path)
 
 
-    # get info file
     base, ext = os.path.splitext(model_path)
     info_path = base + model.info_ext
     first_preview_path = base+".png"
     sec_preview_path = base+".preview.png"
     civitai_info_path = base + civitai.suffix + model.info_ext
+    note_path = base + ".ch_note"
 
     if os.path.isfile(civitai_info_path):
         related_paths.append(civitai_info_path)
@@ -342,7 +308,9 @@ def remove_model_by_path(msg):
     if os.path.isfile(info_path):
         related_paths.append(info_path)
 
-    # remove files
+    if os.path.isfile(note_path):
+        related_paths.append(note_path)
+
     for rp in related_paths:
         if os.path.isfile(rp):
             util.printD(f"Removing file {rp}")
@@ -354,4 +322,154 @@ def remove_model_by_path(msg):
     return output
 
 
+def apply_lora_with_strength(msg):
+    util.printD("Start apply_lora_with_strength")
 
+    result = msg_handler.parse_js_msg(msg)
+    if not result:
+        util.printD("Parsing js msg failed")
+        return
+
+    model_type = result.get("model_type", "")
+    search_term = ""
+    model_path = ""
+    prompt = result.get("prompt", "")
+    strength = result.get("strength", 1.0)
+    model_info = None
+
+    if "model_path" in result.keys():
+        model_path = result["model_path"]
+        model_info = civitai.load_model_info_by_model_path(model_path)
+    else:
+        search_term = result.get("search_term", "")
+        model_info = civitai.load_model_info_by_search_term(model_type, search_term)
+
+    if not model_info:
+        util.printD(f"Failed to get model info for {model_type} {search_term}")
+        return [prompt, prompt]
+
+    trainedWords = model_info.get("trainedWords", [])
+    if not trainedWords:
+        lora_name = ""
+        if search_term:
+            parts = search_term.split()
+            filename = parts[0] if parts else ""
+            base_name = os.path.splitext(os.path.basename(filename))[0]
+            lora_name = base_name
+        elif model_path:
+            lora_name = os.path.splitext(os.path.basename(model_path))[0]
+        
+        if lora_name:
+            lora_tag = f"<lora:{lora_name}:{strength}>"
+            new_prompt = prompt + " " + lora_tag
+        else:
+            new_prompt = prompt
+    else:
+        trigger_words = ", ".join(trainedWords)
+        lora_name = ""
+        if search_term:
+            parts = search_term.split()
+            filename = parts[0] if parts else ""
+            base_name = os.path.splitext(os.path.basename(filename))[0]
+            lora_name = base_name
+        elif model_path:
+            lora_name = os.path.splitext(os.path.basename(model_path))[0]
+
+        lora_tag = f"<lora:{lora_name}:{strength}>" if lora_name else ""
+        new_prompt = prompt + " " + trigger_words + " " + lora_tag
+
+    util.printD(f"Applied LoRA with strength {strength}: {lora_name if 'lora_name' in dir() else 'unknown'}")
+    util.printD(f"new_prompt: {new_prompt}")
+
+    return [new_prompt, new_prompt]
+
+
+def get_trigger_words(msg):
+    util.printD("Start get_trigger_words")
+
+    result = msg_handler.parse_js_msg(msg)
+    if not result:
+        util.printD("Parsing js msg failed")
+        return msg_handler.build_py_msg("get_trigger_words", {"trigger_words": []})
+
+    model_type = result.get("model_type", "")
+    search_term = ""
+    model_path = ""
+    model_info = None
+
+    if "model_path" in result.keys():
+        model_path = result["model_path"]
+        model_info = civitai.load_model_info_by_model_path(model_path)
+    else:
+        search_term = result.get("search_term", "")
+        model_info = civitai.load_model_info_by_search_term(model_type, search_term)
+
+    trigger_words = []
+    if model_info:
+        trainedWords = model_info.get("trainedWords", [])
+        if trainedWords:
+            trigger_words = trainedWords
+
+    util.printD(f"Trigger words: {trigger_words}")
+    return msg_handler.build_py_msg("get_trigger_words", {"trigger_words": trigger_words})
+
+
+def get_model_file_size(msg):
+    util.printD("Start get_model_file_size")
+
+    result = msg_handler.parse_js_msg(msg)
+    if not result:
+        util.printD("Parsing js msg failed")
+        return msg_handler.build_py_msg("get_model_file_size", {"file_size": 0})
+
+    model_type = result.get("model_type", "")
+    search_term = ""
+    model_path = ""
+    file_size = 0
+
+    if "model_path" in result.keys():
+        model_path = result["model_path"]
+    else:
+        search_term = result.get("search_term", "")
+        model_path = model.get_model_path_by_search_term(model_type, search_term)
+
+    if model_path and os.path.isfile(model_path):
+        file_size = os.path.getsize(model_path)
+
+    util.printD(f"Model file size: {file_size}")
+    return msg_handler.build_py_msg("get_model_file_size", {"file_size": file_size})
+
+
+def save_model_note(msg):
+    util.printD("Start save_model_note")
+
+    result = msg_handler.parse_js_msg(msg)
+    if not result:
+        util.printD("Parsing js msg failed")
+        return "Failed to save note"
+
+    model_type = result.get("model_type", "")
+    search_term = ""
+    model_path = ""
+    note = result.get("note", "")
+
+    if "model_path" in result.keys():
+        model_path = result["model_path"]
+    else:
+        search_term = result.get("search_term", "")
+        model_path = model.get_model_path_by_search_term(model_type, search_term)
+
+    if not model_path:
+        return "Failed to find model file"
+
+    base, ext = os.path.splitext(model_path)
+    note_path = base + ".ch_note"
+
+    try:
+        with open(note_path, 'w', encoding='utf-8') as f:
+            f.write(note)
+        util.printD(f"Note saved to: {note_path}")
+        return "Note saved"
+    except Exception as e:
+        util.printD(f"Failed to save note: {str(e)}")
+        return f"Failed to save note: {str(e)}"

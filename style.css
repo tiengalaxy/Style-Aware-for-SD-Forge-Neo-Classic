@@ -16,58 +16,108 @@ blockquote ol {
     padding: 10px 0 !important;
 }
 
-.ch-top-left-buttons {
+.ch-trigger-tooltip {
+    display: none;
     position: absolute;
-    top: 5px;
-    left: 5px;
-    z-index: 100;
-    display: flex;
-    gap: 4px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    z-index: 200;
+    pointer-events: none;
 }
 
-.card:hover .ch-top-left-buttons {
-    opacity: 1;
+.card:hover .ch-trigger-tooltip {
+    display: block;
 }
 
-.ch-tl-btn {
-    width: 28px;
-    height: 28px;
+.ch-file-size {
+    display: inline-block;
+    background: rgba(100, 100, 100, 0.6);
+    color: #ddd;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+.ch-note-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.9);
+    padding: 8px;
+    z-index: 150;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.ch-note-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 12px;
+    resize: vertical;
+    min-height: 40px;
+    box-sizing: border-box;
+}
+
+.ch-note-save-btn {
+    margin-top: 4px;
+    padding: 3px 12px;
+    background: rgba(80, 160, 255, 0.8);
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.ch-note-save-btn:hover {
+    background: rgba(80, 160, 255, 1);
+}
+
+.ch-batch-dl-btn {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #2563eb;
+    color: white;
     border: none;
     border-radius: 4px;
-    font-size: 15px;
     cursor: pointer;
+    font-size: 13px;
+    margin-top: 6px;
+}
+
+.ch-batch-dl-btn:hover {
+    background: #1d4ed8;
+}
+
+.ch-lora-strength-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 0;
-    line-height: 1;
-    transition: background 0.15s, transform 0.1s;
+    gap: 8px;
+    margin-top: 4px;
 }
 
-.ch-tl-btn:hover {
-    transform: scale(1.15);
+.ch-lora-strength-row label {
+    font-size: 13px;
+    color: #aaa;
+    min-width: 70px;
 }
 
-.ch-tl-btn:active {
-    transform: scale(0.95);
-}
-
-.ch-tl-url-btn {
-    background: rgba(0, 0, 0, 0.65);
-    color: white;
-}
-
-.ch-tl-url-btn:hover {
-    background: rgba(0, 0, 0, 0.9);
-}
-
-.ch-tl-del-btn {
-    background: rgba(200, 40, 40, 0.75);
-    color: white;
-}
-
-.ch-tl-del-btn:hover {
-    background: rgba(255, 0, 0, 0.9);
+.ch-lora-strength-row input {
+    width: 80px;
 }
