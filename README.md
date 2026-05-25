@@ -41,7 +41,7 @@ An enhanced Civitai Helper extension for **Stable Diffusion WebUI Forge**, forke
 
 ### Method 1: From URL (Recommended)
 1. Go to Forge's **Extensions** tab → **Install from URL**
-2. Paste: `https://github.com/tiengalaxy/sd-webui-forge-neo-classic-civitai-helper`
+2. Paste: `https://github.com/tiengalaxy/Civitai-Helper-for-SD-WebUI-Forge`
 3. Click **Install**, then **Restart** Forge (not just Reload UI)
 
 ### Method 2: Manual

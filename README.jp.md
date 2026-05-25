@@ -41,7 +41,7 @@
 
 ### 方法1：URL からインストール（推奨）
 1. Forge の **拡張機能** タブ → **URL からインストール** に移動
-2. 以下を貼り付け：`https://github.com/tiengalaxy/sd-webui-forge-neo-classic-civitai-helper`
+2. 以下を貼り付け：`https://github.com/tiengalaxy/Civitai-Helper-for-SD-WebUI-Forge`
 3. **インストール** をクリックし、Forge を**再起動**（UI の再読み込みだけでは不十分）
 
 ### 方法2：手動インストール
