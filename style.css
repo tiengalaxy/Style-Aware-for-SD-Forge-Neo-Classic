@@ -1,0 +1,73 @@
+blockquote ul {
+    list-style:disc;
+    margin:4px 40px;
+}
+
+blockquote ol {
+    list-style:decimal;
+    margin:4px 40px;
+}
+
+.block.padded.ch_box {
+    padding: 10px !important;
+}
+
+.block.padded.ch_vpadding {
+    padding: 10px 0 !important;
+}
+
+.ch-top-left-buttons {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    z-index: 100;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.card:hover .ch-top-left-buttons {
+    opacity: 1;
+}
+
+.ch-tl-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 4px;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.ch-tl-btn:hover {
+    transform: scale(1.15);
+}
+
+.ch-tl-btn:active {
+    transform: scale(0.95);
+}
+
+.ch-tl-url-btn {
+    background: rgba(0, 0, 0, 0.65);
+    color: white;
+}
+
+.ch-tl-url-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+.ch-tl-del-btn {
+    background: rgba(200, 40, 40, 0.75);
+    color: white;
+}
+
+.ch-tl-del-btn:hover {
+    background: rgba(255, 0, 0, 0.9);
+}
