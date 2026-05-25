@@ -897,4 +897,102 @@ onUiLoaded(() => {
         }
     }, 1000);
 
+
+    function ch_inject_extension_manager() {
+        let ext_tab = gradioApp().getElementById("tab_extensions");
+        if (!ext_tab) return;
+
+        let installed_tab = ext_tab.querySelector("#extensions_installed");
+        if (!installed_tab) return;
+
+        if (installed_tab.querySelector(".ch-ext-manager-header")) return;
+
+        let header = document.createElement("div");
+        header.className = "ch-ext-manager-header";
+        header.style.cssText = "margin: 10px 0; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;";
+
+        let title = document.createElement("h3");
+        title.textContent = "Extension Manager (by Civitai Helper)";
+        title.style.cssText = "margin: 0 0 8px 0; font-size: 16px;";
+        header.appendChild(title);
+
+        let desc = document.createElement("p");
+        desc.textContent = "Uninstall or force-update extensions directly from this page.";
+        desc.style.cssText = "margin: 0 0 8px 0; font-size: 13px; color: #aaa;";
+        header.appendChild(desc);
+
+        installed_tab.insertBefore(header, installed_tab.firstChild);
+
+        let rows = installed_tab.querySelectorAll("tr");
+        for (let row of rows) {
+            if (row.querySelector(".ch-ext-uninstall-btn")) continue;
+
+            let name_cell = row.querySelector("td:first-child");
+            if (!name_cell) continue;
+
+            let ext_name = name_cell.textContent.trim();
+            if (!ext_name) continue;
+
+            let btn_cell = document.createElement("td");
+            btn_cell.style.whiteSpace = "nowrap";
+
+            let uninstall_btn = document.createElement("button");
+            uninstall_btn.textContent = "🗑 Uninstall";
+            uninstall_btn.className = "ch-ext-uninstall-btn";
+            uninstall_btn.style.cssText = "padding: 2px 8px; margin-right: 4px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;";
+            uninstall_btn.onclick = function() {
+                if (!confirm(`Uninstall extension "${ext_name}"?\nThis will delete the extension folder and cannot be undone.`)) return;
+                let msg = {
+                    "action": "uninstall_extension",
+                    "extension_name": ext_name,
+                };
+                let js_uninstall_ext_btn = gradioApp().getElementById("ch_js_uninstall_ext_btn");
+                if (js_uninstall_ext_btn) {
+                    send_ch_py_msg(msg);
+                    js_uninstall_ext_btn.click();
+                }
+            };
+            btn_cell.appendChild(uninstall_btn);
+
+            let force_update_btn = document.createElement("button");
+            force_update_btn.textContent = "🔄 Force Update";
+            force_update_btn.className = "ch-ext-force-update-btn";
+            force_update_btn.style.cssText = "padding: 2px 8px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;";
+            force_update_btn.onclick = function() {
+                if (!confirm(`Force update extension "${ext_name}"?\nThis will run git reset --hard and git pull on the extension.`)) return;
+                let msg = {
+                    "action": "force_update_extension",
+                    "extension_name": ext_name,
+                };
+                let js_force_update_ext_btn = gradioApp().getElementById("ch_js_force_update_ext_btn");
+                if (js_force_update_ext_btn) {
+                    send_ch_py_msg(msg);
+                    js_force_update_ext_btn.click();
+                }
+            };
+            btn_cell.appendChild(force_update_btn);
+
+            row.appendChild(btn_cell);
+        }
+    }
+
+    let ch_ext_observer_timer = null;
+    const ch_ext_observer = new MutationObserver(() => {
+        if (ch_ext_observer_timer) clearTimeout(ch_ext_observer_timer);
+        ch_ext_observer_timer = setTimeout(() => {
+            ch_inject_extension_manager();
+        }, 500);
+    });
+
+    setTimeout(() => {
+        let ext_tab = gradioApp().getElementById("tab_extensions");
+        if (ext_tab) {
+            ch_ext_observer.observe(ext_tab, {
+                childList: true,
+                subtree: true,
+            });
+            ch_inject_extension_manager();
+        }
+    }, 2000);
+
 });

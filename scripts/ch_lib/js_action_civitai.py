@@ -522,3 +522,74 @@ def batch_get_model_data(msg):
 
     util.printD(f"Batch fetched data for {len(items)} models")
     return msg_handler.build_py_msg("batch_get_model_data", {"items": items})
+
+
+def uninstall_extension(msg):
+    util.printD("Start uninstall_extension")
+
+    result = msg_handler.parse_js_msg(msg)
+    if not result:
+        util.printD("Parsing js msg failed")
+        return "Failed to uninstall: parsing message failed"
+
+    ext_name = result.get("extension_name", "")
+    if not ext_name:
+        return "Failed to uninstall: extension name is empty"
+
+    extensions_dir = os.path.join(root_path, "extensions")
+    ext_path = os.path.join(extensions_dir, ext_name)
+
+    if not os.path.isdir(ext_path):
+        return f"Failed to uninstall: extension folder not found: {ext_path}"
+
+    try:
+        import shutil
+        shutil.rmtree(ext_path)
+        util.printD(f"Extension uninstalled: {ext_path}")
+        return f"Extension '{ext_name}' uninstalled successfully. Please restart the UI."
+    except Exception as e:
+        util.printD(f"Failed to uninstall extension: {str(e)}")
+        return f"Failed to uninstall: {str(e)}"
+
+
+def force_update_extension(msg):
+    util.printD("Start force_update_extension")
+
+    result = msg_handler.parse_js_msg(msg)
+    if not result:
+        util.printD("Parsing js msg failed")
+        return "Failed to update: parsing message failed"
+
+    ext_name = result.get("extension_name", "")
+    if not ext_name:
+        return "Failed to update: extension name is empty"
+
+    extensions_dir = os.path.join(root_path, "extensions")
+    ext_path = os.path.join(extensions_dir, ext_name)
+
+    if not os.path.isdir(ext_path):
+        return f"Failed to update: extension folder not found: {ext_path}"
+
+    try:
+        import subprocess
+        subprocess.run(["git", "fetch", "origin"], cwd=ext_path, check=True, capture_output=True)
+        subprocess.run(["git", "reset", "--hard", "origin/main"], cwd=ext_path, check=True, capture_output=True)
+        subprocess.run(["git", "pull"], cwd=ext_path, check=True, capture_output=True)
+        util.printD(f"Extension force updated: {ext_path}")
+        return f"Extension '{ext_name}' updated successfully. Please restart the UI."
+    except subprocess.CalledProcessError as e:
+        error_msg = e.stderr.decode('utf-8', errors='replace') if e.stderr else str(e)
+        util.printD(f"Failed to force update extension: {error_msg}")
+        try:
+            subprocess.run(["git", "fetch", "origin"], cwd=ext_path, check=True, capture_output=True)
+            subprocess.run(["git", "reset", "--hard", "origin/master"], cwd=ext_path, check=True, capture_output=True)
+            subprocess.run(["git", "pull"], cwd=ext_path, check=True, capture_output=True)
+            util.printD(f"Extension force updated (master branch): {ext_path}")
+            return f"Extension '{ext_name}' updated successfully (master branch). Please restart the UI."
+        except subprocess.CalledProcessError as e2:
+            error_msg2 = e2.stderr.decode('utf-8', errors='replace') if e2.stderr else str(e2)
+            util.printD(f"Failed to force update extension (master): {error_msg2}")
+            return f"Failed to update: {error_msg2}"
+    except Exception as e:
+        util.printD(f"Failed to force update extension: {str(e)}")
+        return f"Failed to update: {str(e)}"

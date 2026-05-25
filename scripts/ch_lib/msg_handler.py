@@ -2,8 +2,8 @@
 import json
 from . import util
 
-js_actions = ("open_url", "add_trigger_words", "use_preview_prompt", "dl_model_new_version", "remove_card", "apply_lora_with_strength", "save_note", "get_trigger_words", "get_model_file_size", "batch_get_model_data")
-py_actions = ("open_url", "remove_card", "get_trigger_words", "get_model_file_size", "batch_get_model_data")
+js_actions = ("open_url", "add_trigger_words", "use_preview_prompt", "dl_model_new_version", "remove_card", "apply_lora_with_strength", "save_note", "get_trigger_words", "get_model_file_size", "batch_get_model_data", "uninstall_extension", "force_update_extension")
+py_actions = ("open_url", "remove_card", "get_trigger_words", "get_model_file_size", "batch_get_model_data", "uninstall_extension", "force_update_extension")
 
 
 def parse_js_msg(msg):
