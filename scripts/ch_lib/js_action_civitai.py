@@ -473,3 +473,52 @@ def save_model_note(msg):
     except Exception as e:
         util.printD(f"Failed to save note: {str(e)}")
         return f"Failed to save note: {str(e)}"
+
+
+def batch_get_model_data(msg):
+    util.printD("Start batch_get_model_data")
+
+    result = msg_handler.parse_js_msg(msg)
+    if not result:
+        util.printD("Parsing js msg failed")
+        return msg_handler.build_py_msg("batch_get_model_data", {"items": []})
+
+    model_type = result.get("model_type", "")
+    search_terms = result.get("search_terms", [])
+
+    items = []
+    for search_term in search_terms:
+        model_path = model.get_model_path_by_search_term(model_type, search_term)
+
+        trigger_words = []
+        file_size = 0
+        note = ""
+
+        if model_path:
+            if os.path.isfile(model_path):
+                file_size = os.path.getsize(model_path)
+
+            model_info = civitai.load_model_info_by_search_term(model_type, search_term)
+            if model_info:
+                trainedWords = model_info.get("trainedWords", [])
+                if trainedWords:
+                    trigger_words = trainedWords
+
+            base, ext = os.path.splitext(model_path)
+            note_path = base + ".ch_note"
+            if os.path.isfile(note_path):
+                try:
+                    with open(note_path, 'r', encoding='utf-8') as f:
+                        note = f.read().strip()
+                except Exception:
+                    pass
+
+        items.append({
+            "search_term": search_term,
+            "trigger_words": trigger_words,
+            "file_size": file_size,
+            "note": note,
+        })
+
+    util.printD(f"Batch fetched data for {len(items)} models")
+    return msg_handler.build_py_msg("batch_get_model_data", {"items": items})

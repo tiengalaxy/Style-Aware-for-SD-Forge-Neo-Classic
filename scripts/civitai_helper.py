@@ -200,6 +200,7 @@ def on_ui_tabs():
         js_save_note_btn = gr.Button(value="Save Note", visible=False, elem_id="ch_js_save_note_btn")
         js_get_trigger_words_btn = gr.Button(value="Get Trigger Words", visible=False, elem_id="ch_js_get_trigger_words_btn")
         js_get_file_size_btn = gr.Button(value="Get File Size", visible=False, elem_id="ch_js_get_file_size_btn")
+        js_batch_fetch_btn = gr.Button(value="Batch Fetch Model Data", visible=False, elem_id="ch_js_batch_fetch_btn")
 
         scan_model_civitai_btn.click(scan_model, inputs=[scan_model_types_ckbg], outputs=scan_model_log_md)
 
@@ -223,6 +224,7 @@ def on_ui_tabs():
         js_save_note_btn.click(js_action_civitai.save_model_note, inputs=[js_msg_txtbox], outputs=py_msg_txtbox)
         js_get_trigger_words_btn.click(js_action_civitai.get_trigger_words, inputs=[js_msg_txtbox], outputs=py_msg_txtbox)
         js_get_file_size_btn.click(js_action_civitai.get_model_file_size, inputs=[js_msg_txtbox], outputs=py_msg_txtbox)
+        js_batch_fetch_btn.click(js_action_civitai.batch_get_model_data, inputs=[js_msg_txtbox], outputs=py_msg_txtbox)
 
     return (civitai_helper , "Civitai Helper", "civitai_helper"),
 

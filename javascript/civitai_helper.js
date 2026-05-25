@@ -1,5 +1,8 @@
 "use strict";
 
+const ch_model_data_cache = {};
+let ch_request_lock = false;
+
 function ch_convert_file_path_to_url(path){
     let prefix = "file=";
     let path_to_url = path.replaceAll('\\', '/');
@@ -124,8 +127,10 @@ function convertModelTypeFromJsToPy(js_model_type) {
 }
 
 async function open_model_url(event, model_type, search_term){
+    if (ch_request_lock) { event.stopPropagation(); event.preventDefault(); return; }
+    ch_request_lock = true;
     let js_open_url_btn = gradioApp().getElementById("ch_js_open_url_btn");
-    if (!js_open_url_btn) { return; }
+    if (!js_open_url_btn) { ch_request_lock = false; return; }
 
     let msg = {
         "action": "open_url",
@@ -143,6 +148,8 @@ async function open_model_url(event, model_type, search_term){
     try {
         new_py_msg = await get_new_ch_py_msg();
     } catch (error) {}
+
+    ch_request_lock = false;
 
     if (new_py_msg) {
         try {
@@ -195,10 +202,12 @@ function use_preview_prompt(event, model_type, search_term){
 }
 
 async function remove_card(event, model_type, search_term){
+    if (ch_request_lock) { event.stopPropagation(); event.preventDefault(); return; }
+    ch_request_lock = true;
     let js_remove_card_btn = gradioApp().getElementById("ch_js_remove_card_btn");
-    if (!js_remove_card_btn) { return; }
+    if (!js_remove_card_btn) { ch_request_lock = false; return; }
 
-    if (!confirm("\nConfirm to remove this model.\n\nCheck console log for detail.")) { return; }
+    if (!confirm("\nConfirm to remove this model.\n\nCheck console log for detail.")) { ch_request_lock = false; return; }
 
     let msg = {
         "action": "remove_card",
@@ -219,6 +228,8 @@ async function remove_card(event, model_type, search_term){
         new_py_msg = error;
     }
 
+    ch_request_lock = false;
+
     let result = "Done";
     if (new_py_msg) { result = new_py_msg; }
     alert(result);
@@ -236,8 +247,10 @@ async function remove_card(event, model_type, search_term){
 }
 
 async function open_model_url_with_path(event, model_type, model_path){
+    if (ch_request_lock) { event.stopPropagation(); event.preventDefault(); return; }
+    ch_request_lock = true;
     let js_open_url_btn = gradioApp().getElementById("ch_js_open_url_btn");
-    if (!js_open_url_btn) { return; }
+    if (!js_open_url_btn) { ch_request_lock = false; return; }
 
     let msg = {
         "action": "open_url",
@@ -255,6 +268,8 @@ async function open_model_url_with_path(event, model_type, model_path){
     try {
         new_py_msg = await get_new_ch_py_msg();
     } catch (error) {}
+
+    ch_request_lock = false;
 
     if (new_py_msg) {
         try {
@@ -307,10 +322,12 @@ function use_preview_prompt_with_path(event, model_type, model_path){
 }
 
 async function remove_card_with_path(event, model_type, model_path){
+    if (ch_request_lock) { event.stopPropagation(); event.preventDefault(); return; }
+    ch_request_lock = true;
     let js_remove_card_btn = gradioApp().getElementById("ch_js_remove_card_btn");
-    if (!js_remove_card_btn) { return; }
+    if (!js_remove_card_btn) { ch_request_lock = false; return; }
 
-    if (!confirm("\nConfirm to remove this model.\n\nCheck console log for detail.")) { return; }
+    if (!confirm("\nConfirm to remove this model.\n\nCheck console log for detail.")) { ch_request_lock = false; return; }
 
     let msg = {
         "action": "remove_card",
@@ -330,6 +347,8 @@ async function remove_card_with_path(event, model_type, model_path){
     } catch (error) {
         new_py_msg = error;
     }
+
+    ch_request_lock = false;
 
     let result = "Done";
     if (new_py_msg) { result = new_py_msg; }
@@ -369,9 +388,9 @@ function ch_apply_lora_with_strength(event, model_type, search_term){
     let js_apply_lora_btn = gradioApp().getElementById("ch_js_apply_lora_btn");
     if (!js_apply_lora_btn) { return; }
 
-    let strength = shared.gradio_config.components?.ch_lora_strength?.value || 1.0;
+    let strength = 1.0;
     let strengthInput = gradioApp().querySelector("#ch_lora_strength input");
-    if (strengthInput) {
+    if (strengthInput && strengthInput.value) {
         strength = parseFloat(strengthInput.value) || 1.0;
     }
 
@@ -444,6 +463,79 @@ function ch_format_file_size(bytes) {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
     if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+}
+
+async function ch_batch_fetch_model_data(model_type, search_terms) {
+    let uncached = [];
+    for (let st of search_terms) {
+        let cache_key = model_type + "|" + st;
+        if (ch_model_data_cache[cache_key]) continue;
+        uncached.push(st);
+    }
+
+    if (uncached.length === 0) return;
+
+    let js_batch_fetch_btn = gradioApp().getElementById("ch_js_batch_fetch_btn");
+    if (!js_batch_fetch_btn) return;
+
+    let msg = {
+        "action": "batch_get_model_data",
+        "model_type": model_type,
+        "search_terms": uncached,
+    };
+
+    send_ch_py_msg(msg);
+    js_batch_fetch_btn.click();
+
+    try {
+        let response = await get_new_ch_py_msg(10);
+        if (response) {
+            let py_msg_json = JSON.parse(response);
+            if (py_msg_json && py_msg_json.content && py_msg_json.content.items) {
+                for (let item of py_msg_json.content.items) {
+                    let cache_key = model_type + "|" + item.search_term;
+                    ch_model_data_cache[cache_key] = item;
+                }
+            }
+        }
+    } catch(e) {}
+}
+
+function ch_apply_cached_data_to_cards(cards, model_type) {
+    for (let card of cards) {
+        let search_term_node = card.querySelector(".actions .additional .search_term");
+        if (!search_term_node) {
+            search_term_node = card.querySelector(".actions .additional .search_terms");
+        }
+        if (!search_term_node) continue;
+
+        let search_term = search_term_node.innerHTML.trim();
+        if (!search_term) continue;
+
+        let cache_key = model_type + "|" + search_term;
+        let data = ch_model_data_cache[cache_key];
+        if (!data) continue;
+
+        if (data.trigger_words && data.trigger_words.length > 0 && !card.querySelector(".ch-trigger-tooltip")) {
+            let tooltip = document.createElement("div");
+            tooltip.className = "ch-trigger-tooltip";
+            tooltip.innerHTML = "🔑 " + data.trigger_words.join(", ");
+            card.appendChild(tooltip);
+        }
+
+        if (data.file_size > 0 && !card.querySelector(".ch-file-size")) {
+            let sizeStr = ch_format_file_size(data.file_size);
+            if (sizeStr) {
+                let badge = document.createElement("span");
+                badge.className = "ch-file-size";
+                badge.innerHTML = sizeStr;
+                let name_row = card.querySelector(".name");
+                if (name_row) {
+                    name_row.appendChild(badge);
+                }
+            }
+        }
+    }
 }
 
 
@@ -530,9 +622,10 @@ onUiLoaded(() => {
         textarea.setAttribute("data-model-type", model_type);
         textarea.setAttribute("data-search-term", search_term);
 
-        let savedNote = card.querySelector(".actions .additional .ch_note");
-        if (savedNote) {
-            textarea.value = savedNote.innerHTML.trim();
+        let cache_key = model_type + "|" + search_term;
+        let cached = ch_model_data_cache[cache_key];
+        if (cached && cached.note) {
+            textarea.value = cached.note;
         }
 
         let save_btn = document.createElement("button");
@@ -542,6 +635,9 @@ onUiLoaded(() => {
             e.stopPropagation();
             e.preventDefault();
             ch_save_model_note(e, model_type, search_term);
+            if (ch_model_data_cache[cache_key]) {
+                ch_model_data_cache[cache_key].note = textarea.value;
+            }
             panel.remove();
         };
 
@@ -551,89 +647,6 @@ onUiLoaded(() => {
         panel.appendChild(textarea);
         panel.appendChild(save_btn);
         card.appendChild(panel);
-    }
-
-    function add_trigger_words_tooltip(card, model_type, search_term) {
-        if (card.querySelector(".ch-trigger-tooltip")) return;
-
-        let tooltip = document.createElement("div");
-        tooltip.className = "ch-trigger-tooltip";
-        tooltip.innerHTML = "Loading trigger words...";
-
-        let msg = {
-            "action": "get_trigger_words",
-            "model_type": model_type,
-            "search_term": search_term,
-        };
-
-        let js_get_trigger_words_btn = gradioApp().getElementById("ch_js_get_trigger_words_btn");
-        if (js_get_trigger_words_btn) {
-            let old_handler = js_get_trigger_words_btn.onclick;
-            send_ch_py_msg(msg);
-            js_get_trigger_words_btn.click();
-
-            get_new_ch_py_msg(3).then(response => {
-                if (response) {
-                    try {
-                        let py_msg_json = JSON.parse(response);
-                        if (py_msg_json && py_msg_json.content && py_msg_json.content.trigger_words) {
-                            let words = py_msg_json.content.trigger_words;
-                            if (words.length > 0) {
-                                tooltip.innerHTML = "🔑 " + words.join(", ");
-                            } else {
-                                tooltip.innerHTML = "No trigger words found";
-                            }
-                        } else {
-                            tooltip.innerHTML = "No trigger words found";
-                        }
-                    } catch(e) {
-                        tooltip.innerHTML = "No trigger words found";
-                    }
-                } else {
-                    tooltip.innerHTML = "No trigger words found";
-                }
-            }).catch(() => {
-                tooltip.innerHTML = "No trigger words found";
-            });
-        }
-
-        card.appendChild(tooltip);
-    }
-
-    function add_file_size_badge(card, model_type, search_term) {
-        if (card.querySelector(".ch-file-size")) return;
-
-        let msg = {
-            "action": "get_model_file_size",
-            "model_type": model_type,
-            "search_term": search_term,
-        };
-
-        let js_get_file_size_btn = gradioApp().getElementById("ch_js_get_file_size_btn");
-        if (js_get_file_size_btn) {
-            send_ch_py_msg(msg);
-            js_get_file_size_btn.click();
-
-            get_new_ch_py_msg(3).then(response => {
-                if (response) {
-                    try {
-                        let py_msg_json = JSON.parse(response);
-                        if (py_msg_json && py_msg_json.content && py_msg_json.content.file_size) {
-                            let sizeStr = ch_format_file_size(py_msg_json.content.file_size);
-                            if (sizeStr) {
-                                let badge = document.createElement("span");
-                                badge.className = "ch-file-size";
-                                badge.innerHTML = sizeStr;
-                                let name_row = card.querySelector(".name");
-                                if (name_row) {
-                                    name_row.appendChild(badge);
-                                }
-                            }
-                        }
-                    } catch(e) {}
-                }
-            }).catch(() => {});
-        }
     }
 
     function update_card_for_civitai(){
@@ -683,12 +696,17 @@ onUiLoaded(() => {
                 if (!extra_network_node) continue;
 
                 cards = extra_network_node.querySelectorAll(".card");
+                let search_terms_to_fetch = [];
+
                 for (let card of cards) {
                     button_row = card.querySelector(".button-row");
                     if (!button_row){ continue; }
 
                     let atags = button_row.querySelectorAll("a");
-                    if (atags && atags.length) { continue; }
+                    if (atags && atags.length) {
+                        ch_apply_cached_data_to_cards([card], model_type);
+                        continue;
+                    }
 
                     search_term_node = card.querySelector(".actions .additional .search_term");
                     if (!search_term_node){ continue; }
@@ -701,8 +719,15 @@ onUiLoaded(() => {
                         button_row.appendChild(btn);
                     }
 
-                    add_trigger_words_tooltip(card, model_type, search_term);
-                    add_file_size_badge(card, model_type, search_term);
+                    search_terms_to_fetch.push(search_term);
+                }
+
+                ch_apply_cached_data_to_cards(cards, model_type);
+
+                if (search_terms_to_fetch.length > 0) {
+                    ch_batch_fetch_model_data(model_type, search_terms_to_fetch).then(() => {
+                        ch_apply_cached_data_to_cards(cards, model_type);
+                    });
                 }
             }
         }
@@ -750,13 +775,18 @@ onUiLoaded(() => {
             if (!extra_network_node) continue;
 
             cards = extra_network_node.querySelectorAll(".card");
+            let search_terms_to_fetch = [];
+
             for (let card of cards) {
                 button_row = card.querySelector(".button-row");
                 if (!button_row){ continue; }
                 button_row.style.flexWrap = "wrap";
 
                 let atags = button_row.querySelectorAll("a");
-                if (atags && atags.length) { continue; }
+                if (atags && atags.length) {
+                    ch_apply_cached_data_to_cards([card], model_type);
+                    continue;
+                }
 
                 search_term_node = card.querySelector(".actions .additional .search_terms");
                 if (!search_term_node){ continue; }
@@ -770,8 +800,15 @@ onUiLoaded(() => {
                     button_row.appendChild(btn);
                 }
 
-                add_trigger_words_tooltip(card, model_type, search_term);
-                add_file_size_badge(card, model_type, search_term);
+                search_terms_to_fetch.push(search_term);
+            }
+
+            ch_apply_cached_data_to_cards(cards, model_type);
+
+            if (search_terms_to_fetch.length > 0) {
+                ch_batch_fetch_model_data(model_type, search_terms_to_fetch).then(() => {
+                    ch_apply_cached_data_to_cards(cards, model_type);
+                });
             }
         }
     }
@@ -836,7 +873,7 @@ onUiLoaded(() => {
             } else {
                 update_card_for_civitai();
             }
-        }, 300);
+        }, 500);
     });
 
     setTimeout(() => {
