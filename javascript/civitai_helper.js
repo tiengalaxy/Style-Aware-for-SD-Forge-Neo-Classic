@@ -112,6 +112,9 @@ function convertModelTypeFromPyToJS(model_type) {
         case "hyper": return "hypernetworks";
         case "ckp": return "checkpoints";
         case "lora": return "lora";
+        case "controlnet": return "controlnet";
+        case "vae": return "vae";
+        case "upscaler": return "upscaler";
     }
     return "";
 }
@@ -122,6 +125,9 @@ function convertModelTypeFromJsToPy(js_model_type) {
         case "hypernetworks": return "hyper";
         case "checkpoints": return "ckp";
         case "lora": return "lora";
+        case "controlnet": return "controlnet";
+        case "vae": return "vae";
+        case "upscaler": return "upscaler";
     }
     return "";
 }
@@ -541,7 +547,7 @@ function ch_apply_cached_data_to_cards(cards, model_type) {
 
 onUiLoaded(() => {
     let tab_prefix_list = ["txt2img", "img2img"];
-    let model_type_list = ["textual_inversion", "hypernetworks", "checkpoints", "lora"];
+    let model_type_list = ["textual_inversion", "hypernetworks", "checkpoints", "lora", "controlnet", "vae", "upscaler"];
     let cardid_suffix = "cards";
 
     function create_card_buttons(model_type, search_term) {

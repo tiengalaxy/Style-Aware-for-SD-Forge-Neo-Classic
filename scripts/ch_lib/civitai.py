@@ -16,6 +16,14 @@ model_type_dict = {
     "Hypernetwork": "hyper",
     "LORA": "lora",
     "LoCon": "lora",
+    "Controlnet": "controlnet",
+    "VAE": "vae",
+    "Upscaler": "upscaler",
+    "Pose": "ti",
+    "Workflows": "ckp",
+    "AestheticGradient": "ti",
+    "Wildcards": "ti",
+    "Standard": "ckp",
 }
 
 

@@ -126,7 +126,8 @@ def on_ui_tabs():
             with gr.Column():
                 gr.Markdown("### Scan Models for Civitai")
                 with gr.Row():
-                    scan_model_types_ckbg = gr.CheckboxGroup(choices=model_types, label="Model Types", value=model_types)
+                    scan_model_types_ckbg = gr.CheckboxGroup(choices=model_types, label="Model Types", value=["lora"])
+                gr.Markdown(value="Models that already have both info file and preview image will be **automatically skipped** to save time")
 
                 scan_model_civitai_btn = gr.Button(value="Scan", variant="primary", elem_id="ch_scan_model_civitai_btn")
                 scan_model_log_md = gr.Markdown(value="Scanning takes time, just wait. Check console log for detail", elem_id="ch_scan_model_log_md")
