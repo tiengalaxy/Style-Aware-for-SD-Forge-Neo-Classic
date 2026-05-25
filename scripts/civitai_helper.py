@@ -75,8 +75,8 @@ def on_ui_tabs():
         }
 
 
-    def scan_model(scan_model_types):
-        return model_action_civitai.scan_model(scan_model_types, max_size_preview, skip_nsfw_preview)
+    def scan_model_gen(scan_model_types):
+        yield from model_action_civitai.scan_model(scan_model_types, max_size_preview, skip_nsfw_preview)
     
     def get_model_info_by_input(model_type_drop, model_name_drop, model_url_or_id_txtbox):
         return model_action_civitai.get_model_info_by_input(model_type_drop, model_name_drop, model_url_or_id_txtbox, max_size_preview, skip_nsfw_preview)
@@ -205,7 +205,7 @@ def on_ui_tabs():
         js_uninstall_ext_btn = gr.Button(value="Uninstall Extension", visible=False, elem_id="ch_js_uninstall_ext_btn")
         js_force_update_ext_btn = gr.Button(value="Force Update Extension", visible=False, elem_id="ch_js_force_update_ext_btn")
 
-        scan_model_civitai_btn.click(scan_model, inputs=[scan_model_types_ckbg], outputs=scan_model_log_md)
+        scan_model_civitai_btn.click(scan_model_gen, inputs=[scan_model_types_ckbg], outputs=scan_model_log_md)
 
         model_type_drop.change(get_model_names_by_input, inputs=[model_type_drop, empty_info_only_ckb], outputs=model_name_drop)
         empty_info_only_ckb.change(get_model_names_by_input, inputs=[model_type_drop, empty_info_only_ckb], outputs=model_name_drop)

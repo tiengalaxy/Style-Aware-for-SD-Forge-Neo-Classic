@@ -12,27 +12,23 @@ from . import downloader
 # return output msg
 def scan_model(scan_model_types, max_size_preview, skip_nsfw_preview):
     util.printD("Start scan_model")
-    output = ""
 
     if not scan_model_types:
         output = "Model Types is None, can not scan."
         util.printD(output)
-        return output
+        yield output
+        return
     
     model_types = []
     if type(scan_model_types) == str:
         model_types.append(scan_model_types)
     else:
         model_types = scan_model_types
-    
-    model_count = 0
-    image_count = 0
-    skipped_count = 0
+
+    all_models = []
     for model_type, model_folder in model.folders.items():
         if model_type not in model_types:
             continue
-
-        util.printD("Scanning path: " + model_folder)
         for root, dirs, files in os.walk(model_folder, followlinks=True):
             for filename in files:
                 item = os.path.join(root, filename)
@@ -40,46 +36,93 @@ def scan_model(scan_model_types, max_size_preview, skip_nsfw_preview):
                 if ext in model.exts:
                     if len(base) > 4:
                         if base[-4:] == model.vae_suffix:
-                            util.printD("This is a vae file: " + filename)
                             continue
+                    all_models.append((model_type, item, filename))
 
-                    if model.has_info_and_preview(item):
-                        skipped_count = skipped_count + 1
-                        continue
+    total = len(all_models)
+    if total == 0:
+        yield "No models found to scan."
+        return
 
-                    info_file = base + civitai.suffix + model.info_ext
-                    if not os.path.isfile(info_file):
-                        util.printD("Creating model info for: " + filename)
-                        hash = util.gen_file_sha256(item)
+    yield f"🔍 Found **{total}** models to scan. Starting...\n\n| Step | Model | Status |\n|------|-------|--------|"
 
-                        if not hash:
-                            output = "failed generating SHA256 for model:" + filename
-                            util.printD(output)
-                            return output
-                        
-                        model_info = civitai.get_model_info_by_hash(hash)
-                        if model_type == "ti":
-                            util.printD("Delay 1 second for TI")
-                            time.sleep(1)
+    model_count = 0
+    image_count = 0
+    skipped_count = 0
+    table_rows = ""
 
-                        if model_info is None:
-                            output = "Connect to Civitai API service failed. Wait a while and try again"
-                            util.printD(output)
-                            return output+", check console log for detail"
+    for idx, (model_type, item, filename) in enumerate(all_models):
+        current = idx + 1
+        base, ext = os.path.splitext(item)
 
-                        model.write_model_info(info_file, model_info)
+        if model.has_info_and_preview(item):
+            skipped_count = skipped_count + 1
+            table_rows += f"| {current}/{total} | {filename} | ⏭ Skipped (complete) |\n"
+            if current % 10 == 0 or current == total:
+                progress_pct = int(current / total * 100)
+                yield f"🔍 Scanning... **{progress_pct}%** ({current}/{total}) | Skipped: {skipped_count}\n\n| Step | Model | Status |\n|------|-------|--------|\n{table_rows}"
+            continue
 
-                    model_count = model_count + 1
+        info_file = base + civitai.suffix + model.info_ext
+        if not os.path.isfile(info_file):
+            table_rows += f"| {current}/{total} | {filename} | 🔐 Computing SHA256... |\n"
+            progress_pct = int(current / total * 100)
+            yield f"🔍 Scanning... **{progress_pct}%** ({current}/{total}) | Scanned: {model_count} | Skipped: {skipped_count}\n\n| Step | Model | Status |\n|------|-------|--------|\n{table_rows}"
 
-                    civitai.get_preview_image_by_model_path(item, max_size_preview, skip_nsfw_preview)
-                    image_count = image_count + 1
+            hash = util.gen_file_sha256(item)
 
+            if not hash:
+                table_rows = table_rows.rstrip()
+                lines = table_rows.split("\n")
+                if lines:
+                    lines[-1] = lines[-1].replace("🔐 Computing SHA256...", "❌ SHA256 failed")
+                    table_rows = "\n".join(lines) + "\n"
+                yield f"🔍 Scanning... **{progress_pct}%** ({current}/{total}) | Scanned: {model_count} | Skipped: {skipped_count}\n\n| Step | Model | Status |\n|------|-------|--------|\n{table_rows}"
+                continue
+            
+            model_info = civitai.get_model_info_by_hash(hash)
+            if model_type == "ti":
+                util.printD("Delay 1 second for TI")
+                time.sleep(1)
 
-    output = f"Done. Scanned {model_count} models, checked {image_count} images, skipped {skipped_count} complete models"
+            if model_info is None:
+                table_rows = table_rows.rstrip()
+                lines = table_rows.split("\n")
+                if lines:
+                    lines[-1] = lines[-1].replace("🔐 Computing SHA256...", "❌ API failed")
+                    table_rows = "\n".join(lines) + "\n"
+                yield f"🔍 Scanning... **{progress_pct}%** ({current}/{total}) | Scanned: {model_count} | Skipped: {skipped_count}\n\n| Step | Model | Status |\n|------|-------|--------|\n{table_rows}"
+                continue
 
-    util.printD(output)
+            model.write_model_info(info_file, model_info)
 
-    return output
+            table_rows = table_rows.rstrip()
+            lines = table_rows.split("\n")
+            if lines:
+                lines[-1] = lines[-1].replace("🔐 Computing SHA256...", "✅ Info fetched")
+                table_rows = "\n".join(lines) + "\n"
+
+        model_count = model_count + 1
+
+        table_rows += f"| {current}/{total} | {filename} | 🖼 Downloading preview... |\n"
+        progress_pct = int(current / total * 100)
+        yield f"🔍 Scanning... **{progress_pct}%** ({current}/{total}) | Scanned: {model_count} | Skipped: {skipped_count}\n\n| Step | Model | Status |\n|------|-------|--------|\n{table_rows}"
+
+        civitai.get_preview_image_by_model_path(item, max_size_preview, skip_nsfw_preview)
+        image_count = image_count + 1
+
+        table_rows = table_rows.rstrip()
+        lines = table_rows.split("\n")
+        if lines:
+            lines[-1] = lines[-1].replace("🖼 Downloading preview...", "✅ Preview downloaded")
+            table_rows = "\n".join(lines) + "\n"
+
+        progress_pct = int(current / total * 100)
+        yield f"🔍 Scanning... **{progress_pct}%** ({current}/{total}) | Scanned: {model_count} | Skipped: {skipped_count}\n\n| Step | Model | Status |\n|------|-------|--------|\n{table_rows}"
+
+    yield f"✅ **Done!** Scanned: **{model_count}** | Images: **{image_count}** | Skipped: **{skipped_count}** | Total: **{total}**\n\n| Step | Model | Status |\n|------|-------|--------|\n{table_rows}"
+
+    util.printD(f"Done. Scanned {model_count} models, checked {image_count} images, skipped {skipped_count} complete models")
 
 
 
